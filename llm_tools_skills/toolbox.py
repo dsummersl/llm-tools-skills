@@ -87,15 +87,23 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
         Initialize the SkillToolbox.
 
         Args:
-            skills_path: Optional path to skills directory. If not provided,
-                       looks for skills in default locations.
+            skills_path: Path to skills directory. Supports ~ for home directory.
+
+        Raises:
+            ValueError: If the path is not a directory.
         """
         super().__init__()
 
         self.skills: dict[str, Path] = {}
         self._loaded_skills: set[str] = set()  # Track which skills have been loaded
 
-        path = Path(skills_path)
+        # Expand ~ and convert to Path
+        path = Path(skills_path).expanduser()
+
+        # Validate that path is a directory
+        if path.exists() and not path.is_dir():
+            raise ValueError(f"Path must be a directory, got: {skills_path}")
+
         discovered_skills = discover_skills(path)
         for skill_name, skill_dir in discovered_skills.items():
             self.skills[skill_name] = skill_dir
@@ -117,10 +125,10 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
         frontmatter, _ = parse_frontmatter(content)
         base_description = frontmatter.get("description", f"Load the {skill_name} skill")
 
-        # Create sanitized tool names
+        # Create sanitized tool names with skills_ prefix
         tool_name = skill_name.replace('-', '_')
-        initialize_tool_name = f"{tool_name}_initialize"
-        load_file_tool_name = f"{tool_name}_load_file"
+        initialize_tool_name = f"skills_{tool_name}_initialize"
+        load_file_tool_name = f"skills_{tool_name}_load_file"
 
         def list_available_files() -> str:
             """List all markdown files in the skill directory."""

@@ -125,11 +125,11 @@ class TestSkillToolbox:
 
         assert len(tools) == 2  # Two tools per skill
         tool_names = {tool.name for tool in tools}
-        assert "cooking_best_practices_initialize" in tool_names
-        assert "cooking_best_practices_load_file" in tool_names
+        assert "skills_cooking_best_practices_initialize" in tool_names
+        assert "skills_cooking_best_practices_load_file" in tool_names
 
         # Check the initialize tool
-        init_tool = next(t for t in tools if t.name == "cooking_best_practices_initialize")
+        init_tool = next(t for t in tools if t.name == "skills_cooking_best_practices_initialize")
         assert "how I like to cook" in init_tool.description
         assert "CALL THIS FIRST" in init_tool.description
         assert "SKILL.md" in init_tool.description
@@ -142,10 +142,10 @@ class TestSkillToolbox:
 
         assert len(tools) == 4  # Two tools per skill, 2 skills
         tool_names = {tool.name for tool in tools}
-        assert "coding_best_practices_initialize" in tool_names
-        assert "coding_best_practices_load_file" in tool_names
-        assert "dance_best_practices_initialize" in tool_names
-        assert "dance_best_practices_load_file" in tool_names
+        assert "skills_coding_best_practices_initialize" in tool_names
+        assert "skills_coding_best_practices_load_file" in tool_names
+        assert "skills_dance_best_practices_initialize" in tool_names
+        assert "skills_dance_best_practices_load_file" in tool_names
 
     def test_tool_execute_default(self):
         """Test executing a tool to load default SKILL.md."""
@@ -257,3 +257,35 @@ class TestSkillToolbox:
         result2 = init_tool.implementation()
         assert "already loaded" in result2
         assert "Cooking Best Practices" not in result2  # Should not include full content again
+
+    def test_path_with_tilde_expansion(self, tmp_path, monkeypatch):
+        """Test that ~ is expanded to home directory."""
+        # Create a skill in a temp directory
+        skill_dir = tmp_path / "test-skill"
+        skill_dir.mkdir()
+        skill_file = skill_dir / "SKILL.md"
+        skill_file.write_text("""---
+name: test-skill
+description: A test skill
+---
+
+# Test Skill""")
+
+        # Mock the home directory to be tmp_path
+        monkeypatch.setenv("HOME", str(tmp_path))
+
+        # Use ~ in the path
+        toolbox = Skills("~/test-skill")
+        assert len(toolbox.skills) == 1
+        assert "test-skill" in toolbox.skills
+
+    def test_path_not_directory_raises_error(self, tmp_path):
+        """Test that passing a file path raises ValueError."""
+        # Create a file instead of a directory
+        file_path = tmp_path / "notadir.txt"
+        file_path.write_text("some content")
+
+        # Should raise ValueError
+        import pytest
+        with pytest.raises(ValueError, match="Path must be a directory"):
+            Skills(str(file_path))
