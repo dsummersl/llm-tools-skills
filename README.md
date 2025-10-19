@@ -32,6 +32,9 @@ repomix
 cat repomix-output.xml | llm -T 'Skills("../my-coding-skills")' "Check this codebase against my own best practice skills"
 ```
 
+This plugin supports two kinds of directory structures:
+- A single skill: A directory with a single SKILL.md and supporting files.
+- Multiple skills: A directory with multiple subdirectories, each containing a SKILL.md and supporting files.
 
 # Security and Privacy
 
