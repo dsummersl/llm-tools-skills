@@ -27,12 +27,9 @@ llm plugins
 Examples:
 
 ```sh
-# Load up all the reference skills anthropic provided:
-llm -T 'Skill("https://github.com/anthropics/skills/archive/refs/heads/main.zip")' "Use the documents skill to show me how to convert a PDF to text in python."
-
 # Load my local skills, and use them against some other context (eg, a local repo):
 repomix
-cat repomix-output.xml | llm -T 'Skill("../my-coding-skills")' -T 'Skill("~/Documents/other-testing-skill.zip")'  "Check this codebase against my own best practice skills"
+cat repomix-output.xml | llm -T 'Skills("../my-coding-skills")' "Check this codebase against my own best practice skills"
 ```
 
 
@@ -42,7 +39,6 @@ cat repomix-output.xml | llm -T 'Skill("../my-coding-skills")' -T 'Skill("~/Docu
 this highly sensitive personal data to third-party services (like OpenAI).
 
 See [the lethal trifecta article](https://simonw.substack.com/p/the-lethal-trifecta-for-ai-agents) for more information about the risks of using tools like this with LLMs.
-
 
 ## Dev setup
 

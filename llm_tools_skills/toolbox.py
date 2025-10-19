@@ -39,7 +39,7 @@ def discover_skills(path: Path) -> dict[str, Path]:
     Discover skills from a given path.
 
     Args:
-        path: Path to a skill directory, bundle of skills, or zip file
+        path: Path to a skill directory, bundle of skills
 
     Returns:
         Dictionary mapping skill names to their directory paths
