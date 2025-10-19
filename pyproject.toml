@@ -1,7 +1,7 @@
 [project]
 name = "llm-tools-skills"
 version = "0.1.0"
-description = "Project description for Add Skills bundles to the LLM CLI tool."
+description = "Add Skills bundles to the LLM CLI tool"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Dane Summers", email = "dsummersl@gmail.com" }]
@@ -11,6 +11,13 @@ classifiers = [
 "License :: OSI Approved",
 "Typing :: Typed",
 ]
+dependencies = [
+    "llm>=0.27.1",
+]
+
+[project.entry-points.llm]
+llm_tool_browser_history = "llm_tools_skills"
+
 
 [dependency-groups]
 dev = [
