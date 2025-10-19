@@ -5,7 +5,7 @@
 let g:gutentags_ctags_exclude += ['*/.venv/*']
 let g:projectionist_heuristics = {
       \ 'pyproject.toml': {
-      \   '*.py': {
+      \   'llm_tools_skills/*.py': {
       \     'type': 'function',
       \     'alternate': [
       \       'tests/{dirname}test_{basename}.py',
@@ -15,8 +15,8 @@ let g:projectionist_heuristics = {
       \   'tests/**/test_*.py': {
       \     'type': 'test',
       \     'alternate': [
-      \       '{dirname}{basename}.py',
-      \       '{dirname}/{basename}.py',
+      \       'llm_tools_skills/{dirname}{basename}.py',
+      \       'llm_tools_skills/{dirname}/{basename}.py',
       \     ]
       \   },
       \ },
