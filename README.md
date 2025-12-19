@@ -14,8 +14,14 @@ Example Claude Desktop config:
 {
   "mcpServers": {
     "skills": {
-      "command": "llm-tools-skills-mcp",
-      "args": ["--skills-path", "/path/to/skills"]
+      "command": "uvx",
+      "args": [
+        "--from",
+        "llm-tools-skills",
+        "llm-tools-skills-mcp",
+        "--skills-path",
+        "/path/to/skills",
+      ]
     }
   }
 }
