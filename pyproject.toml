@@ -13,19 +13,25 @@ classifiers = [
 ]
 dependencies = [
     "llm>=0.27.1",
+    "mcp>=1.0.0",
 ]
 
 [project.entry-points.llm]
 llm_tool_browser_history = "llm_tools_skills"
 
+[project.scripts]
+llm-tools-skills-mcp = "llm_tools_skills.mcp_server:cli"
+
 
 [dependency-groups]
 dev = [
-"pytest>=8",
-"pytest-cov>=6",
-"ruff>=0.5",
-"mypy>=1.10",
-"pre-commit>=3.7"
+    "pytest>=8",
+    "pytest-cov>=6",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "treepeat>=0.1.0",
+    "radon>=6.0.1",
 ]
 
 [tool.ruff]

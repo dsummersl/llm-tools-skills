@@ -123,13 +123,14 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        assert len(tools) == 2  # Two tools per skill
+        assert len(tools) == 3  # Two tools per skill + initialize
         tool_names = {tool.name for tool in tools}
-        assert "skills_cooking_best_practices_initialize" in tool_names
-        assert "skills_cooking_best_practices_load_file" in tool_names
+        assert "cooking-best-practices" in tool_names
+        assert "cooking-best-practices_load_file" in tool_names
+        assert "initialize" in tool_names
 
         # Check the initialize tool
-        init_tool = next(t for t in tools if t.name == "skills_cooking_best_practices_initialize")
+        init_tool = next(t for t in tools if t.name == "cooking-best-practices")
         assert "how I like to cook" in init_tool.description
         assert "CALL THIS FIRST" in init_tool.description
         assert "SKILL.md" in init_tool.description
@@ -140,12 +141,13 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        assert len(tools) == 4  # Two tools per skill, 2 skills
+        assert len(tools) == 5  # Two tools per skill, 2 skills + initialize
         tool_names = {tool.name for tool in tools}
-        assert "skills_coding_best_practices_initialize" in tool_names
-        assert "skills_coding_best_practices_load_file" in tool_names
-        assert "skills_dance_best_practices_initialize" in tool_names
-        assert "skills_dance_best_practices_load_file" in tool_names
+        assert "coding-best-practices" in tool_names
+        assert "coding-best-practices_load_file" in tool_names
+        assert "dance-best-practices" in tool_names
+        assert "dance-best-practices_load_file" in tool_names
+        assert "initialize" in tool_names
 
     def test_tool_execute_default(self):
         """Test executing a tool to load default SKILL.md."""
@@ -154,7 +156,7 @@ class TestSkillToolbox:
         tools = list(toolbox.tools())
 
         # Get the initialize tool
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        init_tool = next(t for t in tools if t.name == "cooking-best-practices")
 
         result = init_tool.implementation()
         assert "Cooking Best Practices" in result
@@ -168,11 +170,11 @@ class TestSkillToolbox:
         tools = list(toolbox.tools())
 
         # First initialize the skill
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        init_tool = next(t for t in tools if t.name == "cooking-best-practices")
         init_tool.implementation()
 
         # Then load a specific file
-        load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
+        load_file_tool = next(t for t in tools if t.name == "cooking-best-practices_load_file")
         result = load_file_tool.implementation(filename="kitchen-layout.md")
         assert "Kitchen Layout" in result
         assert "Silverware and Utensils" in result
@@ -183,7 +185,7 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
+        load_file_tool = next(t for t in tools if t.name == "cooking-best-practices_load_file")
         result = load_file_tool.implementation(filename="nonexistent.md")
         assert "WARNING" in result
         assert "not found" in result
@@ -194,7 +196,7 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
+        load_file_tool = next(t for t in tools if t.name == "cooking-best-practices_load_file")
         result = load_file_tool.implementation(filename="../../../etc/passwd")
         assert "ERROR" in result
         assert "outside the skill directory" in result
@@ -206,7 +208,7 @@ class TestSkillToolbox:
         tools = list(toolbox.tools())
 
         # Load a file without loading the skill first
-        load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
+        load_file_tool = next(t for t in tools if t.name == "cooking-best-practices_load_file")
         result = load_file_tool.implementation(filename="kitchen-layout.md")
 
         # Should contain warning about not loading skill first
@@ -225,12 +227,12 @@ class TestSkillToolbox:
         tools = list(toolbox.tools())
 
         # Test the initialize tool (no parameters)
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        init_tool = next(t for t in tools if t.name == "cooking-best-practices")
         assert isinstance(init_tool.input_schema, dict)
         assert init_tool.input_schema == {}  # No parameters
 
         # Test the load_file tool (has filename parameter)
-        load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
+        load_file_tool = next(t for t in tools if t.name == "cooking-best-practices_load_file")
         assert isinstance(load_file_tool.input_schema, dict)
         assert load_file_tool.input_schema["type"] == "object"
         assert "properties" in load_file_tool.input_schema
@@ -246,7 +248,7 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        init_tool = next(t for t in tools if t.name == "cooking-best-practices")
 
         # First call should load the skill
         result1 = init_tool.implementation()
