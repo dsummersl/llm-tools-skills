@@ -1,5 +1,6 @@
 import llm
 from pathlib import Path
+from collections.abc import Callable
 from pydantic import BaseModel, Field
 
 
@@ -72,10 +73,102 @@ def discover_skills(path: Path) -> dict[str, Path]:
     return skills
 
 
+def build_skill_tool_names(skill_name: str) -> tuple[str, str]:
+    initialize_tool_name = skill_name
+    load_file_tool_name = f"{skill_name}_load_file"
+    return initialize_tool_name, load_file_tool_name
+
+
+def make_skill_handlers(
+    skill_name: str,
+    skill_dir: Path,
+    loaded_skills: set[str],
+) -> tuple[str, Callable[[], str], Callable[[str], str]]:
+    skill_file = skill_dir / "SKILL.md"
+    content = skill_file.read_text()
+    frontmatter, _ = parse_frontmatter(content)
+    base_description = frontmatter.get("description", f"Load the {skill_name} skill")
+
+    initialize_tool_name, load_file_tool_name = build_skill_tool_names(skill_name)
+
+    def list_available_files() -> str:
+        """List all markdown files in the skill directory."""
+        files = []
+        for file in skill_dir.iterdir():
+            if file.is_file() and file.suffix == ".md" and file.name != "SKILL.md":
+                files.append(file.name)
+
+        if files:
+            return "\n\nAvailable additional files:\n" + "\n".join(f"  - {f}" for f in sorted(files))
+        return "\n\nNo additional files available in this skill."
+
+    def load_skill() -> str:
+        """Load the main SKILL.md file and list available files."""
+        if skill_name in loaded_skills:
+            return (
+                f"Skill '{skill_name}' is already loaded. "
+                f"Use {load_file_tool_name} to load additional files."
+            )
+
+        loaded_skills.add(skill_name)
+        skill_content = skill_file.read_text()
+        files_list = list_available_files()
+        return skill_content + files_list
+
+    def load_file(filename: str) -> str:
+        """
+        Load a specific file from the skill directory.
+
+        Args:
+            filename: The filename to load from the skill directory.
+
+        Returns:
+            The content of the requested file, with warnings if applicable.
+        """
+        output_parts = []
+
+        if skill_name not in loaded_skills:
+            output_parts.append("⚠️  WARNING: You did not load the skill first. Here is the skill data:\n")
+            output_parts.append("-" * 80)
+            loaded_skills.add(skill_name)
+            skill_content = skill_file.read_text()
+            files_list = list_available_files()
+            output_parts.append(skill_content + files_list)
+            output_parts.append("-" * 80)
+            output_parts.append("")
+
+        file_path = skill_dir / filename
+
+        try:
+            file_path.resolve().relative_to(skill_dir.resolve())
+        except ValueError:
+            output_parts.append(f"⚠️  ERROR: Path '{filename}' is outside the skill directory")
+            return "\n".join(output_parts)
+
+        if not file_path.exists():
+            output_parts.append(f"⚠️  WARNING: File '{filename}' not found in skill '{skill_name}'")
+            return "\n".join(output_parts)
+
+        if output_parts:
+            output_parts.append(f"Requested file '{filename}':\n")
+
+        output_parts.append(file_path.read_text())
+        return "\n".join(output_parts)
+
+    return base_description, load_skill, load_file
+
+
 class LoadFileSchema(BaseModel):
     filename: str = Field(
         description="The filename to load from the skill directory (e.g., 'kitchen-layout.md')."
     )
+
+
+class InitializeSchema(BaseModel):
+    tool_name: str = Field(
+        description="The tool name of the skill to initialize (e.g., 'cooking-best-practices')."
+    )
+
 
 class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
     """
@@ -96,6 +189,8 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
 
         self.skills: dict[str, Path] = {}
         self._loaded_skills: set[str] = set()  # Track which skills have been loaded
+        self._skill_loaders: dict[str, Callable[[], str]] = {}
+        self._skill_descriptions: dict[str, str] = {}
 
         # Expand ~ and convert to Path
         path = Path(skills_path).expanduser()
@@ -108,93 +203,32 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
         for skill_name, skill_dir in discovered_skills.items():
             self.skills[skill_name] = skill_dir
             # Create two tools per skill
-            load_tool, load_file_tool = self._make_skill_tools(skill_name, skill_dir)
+            load_tool, load_file_tool, load_skill, base_description = self._make_skill_tools(skill_name, skill_dir)
+            self._skill_loaders[skill_name] = load_skill
+            self._skill_descriptions[skill_name] = base_description
             self.add_tool(load_tool)
             self.add_tool(load_file_tool)
 
-    def _make_skill_tools(self, skill_name: str, skill_dir: Path) -> tuple[llm.Tool, llm.Tool]:
+        if self.skills:
+            self.add_tool(self._make_initialize_tool())
+
+    def _make_skill_tools(
+        self,
+        skill_name: str,
+        skill_dir: Path,
+    ) -> tuple[llm.Tool, llm.Tool, Callable[[], str], str]:
         """
         Create two tools for a skill: one to load the skill, one to load additional files.
 
         Returns:
-            Tuple of (load_skill_tool, load_file_tool)
+            Tuple of (load_skill_tool, load_file_tool, load_skill_handler, base_description)
         """
-        # Read the frontmatter to get description
-        skill_file = skill_dir / "SKILL.md"
-        content = skill_file.read_text()
-        frontmatter, _ = parse_frontmatter(content)
-        base_description = frontmatter.get("description", f"Load the {skill_name} skill")
-
-        # Create sanitized tool names with skills_ prefix
-        tool_name = skill_name.replace('-', '_')
-        initialize_tool_name = f"skills_{tool_name}_initialize"
-        load_file_tool_name = f"skills_{tool_name}_load_file"
-
-        def list_available_files() -> str:
-            """List all markdown files in the skill directory."""
-            files = []
-            for file in skill_dir.iterdir():
-                if file.is_file() and file.suffix == ".md" and file.name != "SKILL.md":
-                    files.append(file.name)
-
-            if files:
-                return "\n\nAvailable additional files:\n" + "\n".join(f"  - {f}" for f in sorted(files))
-            return "\n\nNo additional files available in this skill."
-
-        def load_skill() -> str:
-            """Load the main SKILL.md file and list available files."""
-            # Check if already loaded
-            if skill_name in self._loaded_skills:
-                return f"Skill '{skill_name}' is already loaded. Use {load_file_tool_name} to load additional files."
-
-            self._loaded_skills.add(skill_name)
-            skill_content = skill_file.read_text()
-            files_list = list_available_files()
-            return skill_content + files_list
-
-        def load_file(filename: str) -> str:
-            """
-            Load a specific file from the skill directory.
-
-            Args:
-                filename: The filename to load from the skill directory.
-
-            Returns:
-                The content of the requested file, with warnings if applicable.
-            """
-            output_parts = []
-
-            # Check if the skill has been loaded first
-            if skill_name not in self._loaded_skills:
-                output_parts.append("⚠️  WARNING: You did not load the skill first. Here is the skill data:\n")
-                output_parts.append("-" * 80)
-                self._loaded_skills.add(skill_name)
-                skill_content = skill_file.read_text()
-                files_list = list_available_files()
-                output_parts.append(skill_content + files_list)
-                output_parts.append("-" * 80)
-                output_parts.append("")
-
-            # Now try to load the requested file
-            file_path = skill_dir / filename
-
-            # Security check: ensure the file is within the skill directory
-            try:
-                file_path.resolve().relative_to(skill_dir.resolve())
-            except ValueError:
-                output_parts.append(f"⚠️  ERROR: Path '{filename}' is outside the skill directory")
-                return "\n".join(output_parts)
-
-            if not file_path.exists():
-                output_parts.append(f"⚠️  WARNING: File '{filename}' not found in skill '{skill_name}'")
-                return "\n".join(output_parts)
-
-            # File exists, add it to the output
-            if output_parts:
-                output_parts.append(f"Requested file '{filename}':\n")
-
-            output_parts.append(file_path.read_text())
-            return "\n".join(output_parts)
+        base_description, load_skill, load_file = make_skill_handlers(
+            skill_name,
+            skill_dir,
+            self._loaded_skills,
+        )
+        initialize_tool_name, load_file_tool_name = build_skill_tool_names(skill_name)
 
         # Tool 1: Initialize/load the skill
         initialize_tool = llm.Tool(
@@ -214,4 +248,33 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
             plugin="llm_tools_skills"
         )
 
-        return initialize_tool, load_file_tool
+        return initialize_tool, load_file_tool, load_skill, base_description
+
+    def _make_initialize_tool(self) -> llm.Tool:
+        def format_valid_tool_names() -> str:
+            lines = []
+            for name in sorted(self.skills):
+                description = self._skill_descriptions.get(name)
+                if description:
+                    lines.append(f"- {name}: {description}")
+                else:
+                    lines.append(f"- {name}")
+            return "\n".join(lines)
+
+        def initialize(tool_name: str) -> str:
+            if tool_name not in self._skill_loaders:
+                valid = ", ".join(sorted(self._skill_loaders)) or "none"
+                raise ValueError(f"Unknown tool name '{tool_name}'. Valid tool names: {valid}")
+            return self._skill_loaders[tool_name]()
+
+        return llm.Tool(
+            name="initialize",
+            description=(
+                "Initialize a discovered skill by tool name and return its SKILL.md contents. "
+                "Valid tool names:\n"
+                f"{format_valid_tool_names()}"
+            ),
+            input_schema=InitializeSchema.model_json_schema(),
+            implementation=initialize,
+            plugin="llm_tools_skills",
+        )

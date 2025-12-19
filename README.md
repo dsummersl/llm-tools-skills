@@ -1,8 +1,34 @@
-# Add Skills bundles to the LLM CLI tool.
+# Add Skills bundles to the LLM CLI tool, and as an MCP service.
 
 A tool for the [llm](https://llm.datasette.io/) command line that allows loading a [Claude Skill](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills).
 
-# Usage
+# Usage as an MCP service
+
+```sh
+pip install llm-tools-skills
+```
+
+Example Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "skills": {
+      "command": "llm-tools-skills-mcp",
+      "args": ["--skills-path", "/path/to/skills"]
+    }
+  }
+}
+```
+
+You can restrict which skills are registered:
+
+```sh
+llm-tools-skills-mcp --skills-path /path/to/skills --skills coding-best-practices --skills dance-best-practices
+```
+
+
+# Usage with llm
 
 Install for use with llm:
 
@@ -49,4 +75,3 @@ See [the lethal trifecta article](https://simonw.substack.com/p/the-lethal-trife
 make setup
 make test
 ```
-
