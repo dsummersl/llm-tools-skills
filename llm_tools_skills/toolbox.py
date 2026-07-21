@@ -127,7 +127,7 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
 
         # Create sanitized tool names with skills_ prefix
         tool_name = skill_name.replace('-', '_')
-        initialize_tool_name = f"skills_{tool_name}_initialize"
+        load_tool_name = f"skills_{tool_name}_load"
         load_file_tool_name = f"skills_{tool_name}_load_file"
 
         def list_available_files() -> str:
@@ -148,10 +148,9 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
                 return f"Skill '{skill_name}' is already loaded. Use {load_file_tool_name} to load additional files."
 
             self._loaded_skills.add(skill_name)
+            skill_content = skill_file.read_text()
             files_list = list_available_files()
-            fm_lines = [f"{k}: {v}" for k, v in frontmatter.items()]
-            fm_text = "---\n" + "\n".join(fm_lines) + "\n---"
-            return fm_text + files_list
+            return skill_content + files_list
 
         def load_file(filename: str) -> str:
             """
@@ -167,13 +166,12 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
 
             # Check if the skill has been loaded first
             if skill_name not in self._loaded_skills:
-                output_parts.append("⚠️  WARNING: You did not load the skill first. Here is the skill data:\n")
+                output_parts.append("\u26a0\ufe0f  WARNING: You did not load the skill first. Here is the skill data:\n")
                 output_parts.append("-" * 80)
                 self._loaded_skills.add(skill_name)
-                fm_lines = [f"{k}: {v}" for k, v in frontmatter.items()]
-                fm_text = "---\n" + "\n".join(fm_lines) + "\n---"
+                skill_content = skill_file.read_text()
                 files_list = list_available_files()
-                output_parts.append(fm_text + files_list)
+                output_parts.append(skill_content + files_list)
                 output_parts.append("-" * 80)
                 output_parts.append("")
 
@@ -184,11 +182,11 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
             try:
                 file_path.resolve().relative_to(skill_dir.resolve())
             except ValueError:
-                output_parts.append(f"⚠️  ERROR: Path '{filename}' is outside the skill directory")
+                output_parts.append(f"\u26a0\ufe0f  ERROR: Path '{filename}' is outside the skill directory")
                 return "\n".join(output_parts)
 
             if not file_path.exists():
-                output_parts.append(f"⚠️  WARNING: File '{filename}' not found in skill '{skill_name}'")
+                output_parts.append(f"\u26a0\ufe0f  WARNING: File '{filename}' not found in skill '{skill_name}'")
                 return "\n".join(output_parts)
 
             # File exists, add it to the output
@@ -198,11 +196,11 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
             output_parts.append(file_path.read_text())
             return "\n".join(output_parts)
 
-        # Tool 1: Initialize/load the skill
-        initialize_tool = llm.Tool(
-            name=initialize_tool_name,
-            description=f"**CALL THIS FIRST** - {base_description} Initializes the skill by loading SKILL.md and listing available additional files. Only needs to be called once.",
-            input_schema={},  # No parameters
+        # Tool 1: Load the skill (returns full SKILL.md + file listing)
+        load_tool = llm.Tool(
+            name=load_tool_name,
+            description=f"Load the {skill_name} skill instructions. {base_description} Also lists available supporting files in this skill.",
+            input_schema={"type": "object", "properties": {}},
             implementation=load_skill,
             plugin="llm_tools_skills"
         )
@@ -210,10 +208,10 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
         # Tool 2: Load a specific file
         load_file_tool = llm.Tool(
             name=load_file_tool_name,
-            description=f"Load a specific file from the {skill_name} skill directory. Must call {initialize_tool_name} first to see available files.",
+            description=f"Load a specific file from the {skill_name} skill directory. Call {load_tool_name} first if you need the full skill instructions and file listing.",
             input_schema=LoadFileSchema.model_json_schema(),
             implementation=load_file,
             plugin="llm_tools_skills"
         )
 
-        return initialize_tool, load_file_tool
+        return load_tool, load_file_tool

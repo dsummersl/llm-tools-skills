@@ -125,14 +125,13 @@ class TestSkillToolbox:
 
         assert len(tools) == 2  # Two tools per skill
         tool_names = {tool.name for tool in tools}
-        assert "skills_cooking_best_practices_initialize" in tool_names
+        assert "skills_cooking_best_practices_load" in tool_names
         assert "skills_cooking_best_practices_load_file" in tool_names
 
-        # Check the initialize tool
-        init_tool = next(t for t in tools if t.name == "skills_cooking_best_practices_initialize")
-        assert "how I like to cook" in init_tool.description
-        assert "CALL THIS FIRST" in init_tool.description
-        assert "SKILL.md" in init_tool.description
+        # Check the load tool
+        load_tool = next(t for t in tools if t.name == "skills_cooking_best_practices_load")
+        assert "how I like to cook" in load_tool.description
+        assert "Also lists available supporting files" in load_tool.description
 
     def test_tools_generation_bundle(self):
         """Test dynamic tool generation from skill bundle."""
@@ -142,9 +141,9 @@ class TestSkillToolbox:
 
         assert len(tools) == 4  # Two tools per skill, 2 skills
         tool_names = {tool.name for tool in tools}
-        assert "skills_coding_best_practices_initialize" in tool_names
+        assert "skills_coding_best_practices_load" in tool_names
         assert "skills_coding_best_practices_load_file" in tool_names
-        assert "skills_dance_best_practices_initialize" in tool_names
+        assert "skills_dance_best_practices_load" in tool_names
         assert "skills_dance_best_practices_load_file" in tool_names
 
     def test_tool_execute_default(self):
@@ -153,17 +152,14 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        # Get the initialize tool
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        # Get the load skill tool
+        load_tool = next(t for t in tools if t.name.endswith("_load") and not t.name.endswith("_load_file"))
 
-        result = init_tool.implementation()
+        result = load_tool.implementation()
+        assert "Cooking Best Practices" in result
+        assert "This document describes my personal best practices" in result
         assert "name: cooking-best-practices" in result
-        assert "description: Reference for how I like to cook" in result
-        assert "---" in result
         assert "Available additional files" in result
-        # Should NOT include body content
-        assert "This document describes my personal best practices" not in result
-        assert "# Cooking Best Practices" not in result
 
     def test_tool_execute_with_path(self):
         """Test executing a tool to load a specific file."""
@@ -171,9 +167,9 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        # First initialize the skill
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
-        init_tool.implementation()
+        # First load the skill
+        load_tool = next(t for t in tools if t.name.endswith("_load") and not t.name.endswith("_load_file"))
+        load_tool.implementation()
 
         # Then load a specific file
         load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
@@ -215,9 +211,8 @@ class TestSkillToolbox:
 
         # Should contain warning about not loading skill first
         assert "WARNING: You did not load the skill first" in result
-        # Should contain the skill frontmatter
-        assert "name: cooking-best-practices" in result
-        assert "description: Reference for how I like to cook" in result
+        # Should contain the skill data
+        assert "Cooking Best Practices" in result
         assert "Available additional files" in result
         # Should also contain the requested file
         assert "Kitchen Layout" in result
@@ -229,10 +224,10 @@ class TestSkillToolbox:
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        # Test the initialize tool (no parameters)
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
-        assert isinstance(init_tool.input_schema, dict)
-        assert init_tool.input_schema == {}  # No parameters
+        # Test the load tool (no parameters)
+        load_tool = next(t for t in tools if t.name.endswith("_load") and not t.name.endswith("_load_file"))
+        assert isinstance(load_tool.input_schema, dict)
+        assert load_tool.input_schema == {"type": "object", "properties": {}}
 
         # Test the load_file tool (has filename parameter)
         load_file_tool = next(t for t in tools if t.name.endswith("_load_file"))
@@ -245,24 +240,23 @@ class TestSkillToolbox:
         filename_field = load_file_tool.input_schema["properties"]["filename"]
         assert "description" in filename_field
 
-    def test_tool_initialize_called_multiple_times(self):
-        """Test that initialize tool only loads once even if called multiple times."""
+    def test_tool_load_called_multiple_times(self):
+        """Test that load tool only loads once even if called multiple times."""
         fixtures_path = Path(__file__).parent / "fixtures" / "cooking-skill"
         toolbox = Skills(str(fixtures_path))
         tools = list(toolbox.tools())
 
-        init_tool = next(t for t in tools if t.name.endswith("_initialize"))
+        load_tool = next(t for t in tools if t.name.endswith("_load") and not t.name.endswith("_load_file"))
 
         # First call should load the skill
-        result1 = init_tool.implementation()
-        assert "name: cooking-best-practices" in result1
-        assert "description: Reference for how I like to cook" in result1
+        result1 = load_tool.implementation()
+        assert "Cooking Best Practices" in result1
         assert "Available additional files" in result1
 
         # Second call should return "already loaded" message
-        result2 = init_tool.implementation()
+        result2 = load_tool.implementation()
         assert "already loaded" in result2
-        assert "name: cooking-best-practices" not in result2  # Should not include full content again
+        assert "Cooking Best Practices" not in result2  # Should not include full content again
 
     def test_path_with_tilde_expansion(self, tmp_path, monkeypatch):
         """Test that ~ is expanded to home directory."""
