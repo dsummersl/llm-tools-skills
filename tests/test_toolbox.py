@@ -157,9 +157,13 @@ class TestSkillToolbox:
         init_tool = next(t for t in tools if t.name.endswith("_initialize"))
 
         result = init_tool.implementation()
-        assert "Cooking Best Practices" in result
         assert "name: cooking-best-practices" in result
+        assert "description: Reference for how I like to cook" in result
+        assert "---" in result
         assert "Available additional files" in result
+        # Should NOT include body content
+        assert "This document describes my personal best practices" not in result
+        assert "# Cooking Best Practices" not in result
 
     def test_tool_execute_with_path(self):
         """Test executing a tool to load a specific file."""
@@ -211,8 +215,9 @@ class TestSkillToolbox:
 
         # Should contain warning about not loading skill first
         assert "WARNING: You did not load the skill first" in result
-        # Should contain the skill data
-        assert "Cooking Best Practices" in result
+        # Should contain the skill frontmatter
+        assert "name: cooking-best-practices" in result
+        assert "description: Reference for how I like to cook" in result
         assert "Available additional files" in result
         # Should also contain the requested file
         assert "Kitchen Layout" in result
@@ -250,13 +255,14 @@ class TestSkillToolbox:
 
         # First call should load the skill
         result1 = init_tool.implementation()
-        assert "Cooking Best Practices" in result1
+        assert "name: cooking-best-practices" in result1
+        assert "description: Reference for how I like to cook" in result1
         assert "Available additional files" in result1
 
         # Second call should return "already loaded" message
         result2 = init_tool.implementation()
         assert "already loaded" in result2
-        assert "Cooking Best Practices" not in result2  # Should not include full content again
+        assert "name: cooking-best-practices" not in result2  # Should not include full content again
 
     def test_path_with_tilde_expansion(self, tmp_path, monkeypatch):
         """Test that ~ is expanded to home directory."""

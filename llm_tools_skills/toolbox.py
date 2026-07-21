@@ -148,9 +148,10 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
                 return f"Skill '{skill_name}' is already loaded. Use {load_file_tool_name} to load additional files."
 
             self._loaded_skills.add(skill_name)
-            skill_content = skill_file.read_text()
             files_list = list_available_files()
-            return skill_content + files_list
+            fm_lines = [f"{k}: {v}" for k, v in frontmatter.items()]
+            fm_text = "---\n" + "\n".join(fm_lines) + "\n---"
+            return fm_text + files_list
 
         def load_file(filename: str) -> str:
             """
@@ -169,9 +170,10 @@ class Skills(llm.Toolbox):  # type: ignore[no-untyped-call]
                 output_parts.append("⚠️  WARNING: You did not load the skill first. Here is the skill data:\n")
                 output_parts.append("-" * 80)
                 self._loaded_skills.add(skill_name)
-                skill_content = skill_file.read_text()
+                fm_lines = [f"{k}: {v}" for k, v in frontmatter.items()]
+                fm_text = "---\n" + "\n".join(fm_lines) + "\n---"
                 files_list = list_available_files()
-                output_parts.append(skill_content + files_list)
+                output_parts.append(fm_text + files_list)
                 output_parts.append("-" * 80)
                 output_parts.append("")
 
